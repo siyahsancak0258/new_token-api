@@ -1,0 +1,35 @@
+{
+    "name": "Tether USD",
+    "symbol": "USDT",
+    "contract": "0x1234567890abcdef1234567890abcdef12345678",
+    "decimals": 6,
+    "verified": true,
+    "logoURI": [
+        "https://res.cloudinary.com/demo/image/upload/v1625098765/usdt_1.png",
+        "https://res.cloudinary.com/demo/image/upload/v1625098765/usdt_2.png",
+        "https://res.cloudinary.com/demo/image/upload/v1625098765/usdt_3.png"
+    ],
+    "explorer": "https://etherscan.io/address/0x1234567890abcdef1234567890abcdef12345678",
+    "etherscanVerified": true,
+    "source": "Etherscan Official",
+    "contractType": "ERC20",
+    "network": {
+        "name": "Ethereum",
+        "chainId": "0x1",
+        "rpc": [
+            "https://eth.llamarpc.com",
+            "https://rpc.ankr.com/eth",
+            "https://cloudflare-eth.com"
+        ]
+    },
+    "auditInfo": {
+        "status": "passed",
+        "auditor": "Etherscan Security Team",
+        "auditDate": "2025-05-01"
+    },
+    "socialLinks": {
+        "website": "https://tether.to",
+        "twitter": "https://twitter.com/Tether_to",
+        "telegram": "https://t.me/TetherOfficial"
+    }
+}
