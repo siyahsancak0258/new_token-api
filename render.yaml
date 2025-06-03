@@ -1,4 +1,3 @@
-
 services:
   - type: web
     name: token-api
@@ -12,6 +11,16 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: API_KEY
-        value: YOUR_SECRET_API_KEY_HERE
+        value: "SiyahSancak0258-MY-TOKEN-SiyahSancak0258"  # Kendi anahtarınız
       - key: ETHERSCAN_API_KEY
-        value: YOUR_ETHERSCAN_API_KEY_HERE
+        value: "E1MD7M2UGT1ZTTVX55JR6SVYKSBVA2EKCB"  # Kendi Etherscan anahtarınız
+      - key: CONTRACT_ADDRESS
+        value: "0x1234567890abcdef1234567890abcdef12345678"  # ADIM 7’den güncelleyin
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: usdt-api-redis
+          property: connectionString
+redis:
+  - name: usdt-api-redis
+    plan: free
