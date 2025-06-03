@@ -57,30 +57,6 @@ def token_info():
     response = get_common_response()
     return jsonify(response), 200, {"Cache-Control": "public, max-age=3600", "X-Etherscan-API": "v1"}
 
-@app.route('/api/v2/token')
-@limiter.limit("50 per minute")
-def token_info_v2():
-    valid, error, status = validate_request()
-    if not valid:
-        return error, status
-    response = get_common_response()
-    response["additional"] = {"contractType": "ERC20", "verifiedBy": "Etherscan"}
-    return jsonify(response), 200, {"Cache-Control": "public, max-age=3600"}
-
-@app.route('/tokens/info')
-@limiter.limit("50 per minute")
-def token_info_alt():
-    valid, error, status = validate_request()
-    if not valid:
-        return error, status
-    response = {
-        "token": get_common_response(),
-        "status": "success",
-        "verified": True,
-        "audit": {"status": "passed", "auditor": "Etherscan"}
-    }
-    return jsonify(response), 200, {"Cache-Control": "public, max-age=3600"}
-
 @app.route('/address/')
 def etherscan_page():
     valid, error, status = validate_request()
@@ -105,3 +81,7 @@ def etherscan_page():
     </html>
     """
     return html, 200
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
