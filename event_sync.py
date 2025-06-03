@@ -5,8 +5,8 @@ from eth_account import Account
 import os
 
 # Ortam değişkenlerinden hassas bilgileri al
-private_key = os.environ.get("PRIVATE_KEY", None)
-INFURA_URL = os.environ.get("INFURA_URL", None)
+private_key = os.environ.get("0x75d26d0e637884f6e7468d554fe3bb1b5099273ba5804d86385700dcd1e3f052", None)
+INFURA_URL = os.environ.get("https://mainnet.infura.io/v3/01ad7526893c42ef95e5c0fa6ca24693", None)
 CONTRACT_ADDRESS = os.environ.get("CONTRACT_ADDRESS", "0xDAC17f2a9b484780B9e109E003F7BB78B1C54A29")
 
 # Eksik değişken kontrolü

