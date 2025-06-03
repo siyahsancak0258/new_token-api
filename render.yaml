@@ -1,0 +1,17 @@
+
+services:
+  - type: web
+    name: token-api
+    env: python
+    plan: free
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: python metadata_server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: API_KEY
+        value: YOUR_SECRET_API_KEY_HERE
+      - key: ETHERSCAN_API_KEY
+        value: YOUR_ETHERSCAN_API_KEY_HERE
