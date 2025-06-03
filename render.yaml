@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: token-api
+    name: new-token-api
     env: python
     plan: free
     buildCommand: |
@@ -15,7 +15,7 @@ services:
       - key: ETHERSCAN_API_KEY
         value: "E1MD7M2UGT1ZTTVX55JR6SVYKSBVA2EKCB"  # Kendi Etherscan anahtarınız
       - key: CONTRACT_ADDRESS
-        value: "0x1234567890abcdef1234567890abcdef12345678"  # ADIM 7’den güncelleyin
+        value: "0xDAC17f2a9b484780B9e109E003F7BB78B1C54A29"  # ADIM 7’den güncelleyin
       - key: REDIS_URL
         fromService:
           type: redis
