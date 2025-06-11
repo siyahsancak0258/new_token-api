@@ -1,46 +1,6 @@
 {
-    "name": "Tether USD",
-    "symbol": "USDT",
-    "contract": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-    "decimals": 6,
-    "verified": true,
-    "logoURI": "https://cdn.tron.network/usdt_1.png",
-    "explorer": "https://tronscan.org/#/contract/TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-    "tags": ["stablecoin", "TRC20", "verified"],
-    "contractType": "TRC20",
-    "verifiedBy": "TRON",
-    "source": "TRON Official",
-    "auditInfo": {
-        "contract": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-        "status": "verified",
-        "auditor": "TRON Security",
-        "auditDate": "2025-05-01T12:00:00Z",
-        "certId": "TRON-VERIFIED-2025-001",
-        "sourceCode": "https://your-audit-domain.com/source/TokenProxy.sol",
-        "bytecodeHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
-        "securityScore": 95,
-        "lastScanned": "2025-06-01T12:00:00Z",
-        "auditUrl": "https://your-audit-domain.com/tron-audit-cert",
-        "auditReport": {
-            "vulnerabilities": [],
-            "recommendations": [],
-            "verifiedAt": "2025-06-01T12:00:00Z",
-            "auditorDetails": {
-                "name": "TRON Security Team",
-                "contact": "security@tron.network",
-                "website": "https://tron.network/security"
-            },
-            "compliance": {
-                "trc20": true,
-                "securityStandards": ["TRON-TIP-20", "TRON-TIP-55"],
-                "lastUpdated": "2025-06-01T12:00:00Z"
-            }
-        }
-    },
-    "tokenURI": "aHR0cHM6Ly9pcGZzLmlvL2lwZnMvUW0uLi4vdXNkdC5qc29u",
-    "balance": 1000000000000,
-    "allowlist": {
-        "status": "verified",
-        "contract": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
-    }
+  "contract": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+  "symbol": "USDT",
+  "name": "Tether USD",
+  "decimals": 6
 }
